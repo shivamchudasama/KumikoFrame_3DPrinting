@@ -168,21 +168,21 @@ Once all the components are printed, you can follow the assembly instructions he
 /* [General Options] */
 
 // Whether reference mode or printing mode is selected.
-Assembly_Option = "Reference Mode"; // [Reference Mode:Reference Mode (Do not print - use only as a reference), Printable Mode:Printable Mode]
-Hide_Colors = false;
+Assembly_Option = "Printable Mode"; // [Reference Mode:Reference Mode (Do not print - use only as a reference), Printable Mode:Printable Mode]
+Hide_Colors = true;
 // Select whether to plot all the components (slow to load) or a reduced number of components (faster)
-All_Component_View = false;
-Hide_Text = false;
+All_Component_View = true;
+Hide_Text = true;
 // This limits the size of components to fit the print bed
-Print_Bed_Size = 250; // [180:Small (180x180), 250:Medium (250x250), 320:Large (320x320)]
+Print_Bed_Size = 320; // [180:Small (180x180), 250:Medium (250x250), 320:Large (320x320)]
 
 /* [Frame Components] */
 
-Subpanels = true;
-Seams = true;
-Outer_Frame = true;
-Border = true;
-Border_Background = true;
+Subpanels = false;
+Seams = false;
+Outer_Frame = false;
+Border = false;
+Border_Background = false;
 Hanger = true;
 
 /* [Frame Dimensions] */
@@ -191,19 +191,19 @@ Hanger = true;
 Generator = "Triangles"; // [Triangles:Use triangles to generate frame., Dimensions:Use height & width dimensions to generate frame.]
 
 // Uses triangles as dimensions (width, height)
-Triangle_Generator = [10, 16];
+Triangle_Generator = [33, 28];
 
 // Uses mm as dimensions (width, height). IMPORTANT: panel will be rounded down to fit these dimensions. Refer to Width and Height values under "PARAMETERS" on reference card for correct panel dimensions.
-Millimeter_Generator = [550, 750];
+Millimeter_Generator = [500, 700];
 
 // Adjusts the border thickness to obtain an exact thickness dimension. If true, the Border_Thickness variable is ignored. Otherwise, round the frame down to fit within the frame constraints.
 Make_Exact_Dimensions = false;
 
 // Distance between triangles in frame.
-Grid_Pitch = 50;
+Grid_Pitch = 40;
 
 // Depth of frame
-Frame_Depth = 12;
+Frame_Depth = 10;
 
 // Thickness of frame
 Grid_Thickness = 3;
@@ -212,7 +212,7 @@ Grid_Thickness = 3;
 Border_Thickness = 0;
 
 // Background Depth
-Background_Depth = 12;
+Background_Depth = 10;
 
 // Hanger Type
 Hanger_Type = "1"; // ["1":Wall Hanger, "2":Keyhole Shelving Hanger, "3":Ikea Fjallbo Ledge Hanger]

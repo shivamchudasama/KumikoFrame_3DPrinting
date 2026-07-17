@@ -27,10 +27,10 @@ if (Split_In_Half) {
 
 /* [Parameters] */
 
-Insert_Pattern = -1; // [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38]
+Insert_Pattern = 1; // [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39]
 Insert_Color = "#D3B7A7"; // color
 // Insert Thickness
-Insert_Thickness = 2;
+Insert_Thickness = 4;
 N_Components = 1;
 Split_In_Half = false;
 // Note: only needed for asymmetric inserts
@@ -41,9 +41,9 @@ Alternative_Cut = false;
 // Thickness of frame
 Grid_Thickness = 3;
 // Pitch of triangles in frame
-Grid_Pitch = 50; // .5
+Grid_Pitch = 40; // .5
 // Depth of frame
-Frame_Depth = 12; // .5
+Frame_Depth = 10; // .5
 
 /* [Magnet Parameters] */
 
@@ -59,8 +59,11 @@ $fa = 1;
 $fs = 0.5;
 
 // Background and insert depth
-background_thickness = 0.2;
-background_edge_thickness = 0.4;
+// background_thickness = 0.2;
+// background_edge_thickness = 0.4;
+// background_frame_support_depth = 0.4;
+background_thickness = 0;
+background_edge_thickness = 0;
 background_frame_support_depth = 0.4;
 support_edge_width = 0.8;
 
@@ -920,6 +923,18 @@ module ak() {
     };
 };
 
+module al() {
+    module objs() {
+        stroke([l_midpoint, mm, tr_midpoint, mm, br_midpoint], Insert_Thickness);
+    };
+
+    translate(path_to_mid)
+    intersection() {
+        insert_triangle();
+        objs();
+    };
+};
+
 module test_tube_holder() {
     mt = flipped_midtriangle(0.25);
     mt2 = flipped_midtriangle(-0.25);
@@ -1036,7 +1051,8 @@ module plot_inserts(pattern, id, quantity, split_insert, splits="both") {
     else if (pattern == 35) {af();}
     else if (pattern == 36) {ak();}
     else if (pattern == 37) {ai();}
-    else if (pattern == 38) {aj();};
+    else if (pattern == 38) {aj();}
+    else if (pattern == 39) {al();};
 }
 
 module split_insert(splitter_mask) {

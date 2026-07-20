@@ -27,10 +27,12 @@ if (Split_In_Half) {
 
 /* [Parameters] */
 
-Insert_Pattern = 1; // [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39]
+Insert_Pattern = 0; // [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
 Insert_Color = "#D3B7A7"; // color
 // Insert Thickness
 Insert_Thickness = 4;
+// Oversize per contact face on patterns 39/40 (~2x this across the width) for a press fit
+Press_Fit = 0.20; // .05
 N_Components = 1;
 Split_In_Half = false;
 // Note: only needed for asymmetric inserts
@@ -926,12 +928,33 @@ module ak() {
 module al() {
     module objs() {
         stroke([l_midpoint, mm, tr_midpoint, mm, br_midpoint], Insert_Thickness);
+
+        // Feet along the rails: full-width bars whose outer face sits proud
+        // of the cell opening by Press_Fit, so the insert grips over a long
+        // flat contact under slight compression.
+        foot_length = Grid_Pitch/5;
+        l_foot = get_newpos(l_midpoint, Insert_Thickness/2-Press_Fit, 0);
+        tr_foot = get_newpos(tr_midpoint, Insert_Thickness/2-Press_Fit, -120);
+        br_foot = get_newpos(br_midpoint, Insert_Thickness/2-Press_Fit, 120);
+        stroke([get_newpos(l_foot, foot_length/2, 90), get_newpos(l_foot, foot_length/2, -90)], Insert_Thickness);
+        stroke([get_newpos(tr_foot, foot_length/2, -30), get_newpos(tr_foot, foot_length/2, 150)], Insert_Thickness);
+        stroke([get_newpos(br_foot, foot_length/2, 30), get_newpos(br_foot, foot_length/2, -150)], Insert_Thickness);
     };
 
     translate(path_to_mid)
     intersection() {
+        offset(delta=Press_Fit)
         insert_triangle();
         objs();
+    };
+};
+
+module am() {
+    translate(path_to_mid)
+    intersection() {
+        offset(delta=Press_Fit)
+        insert_triangle();
+        stroke([l_midpoint, mm, tr_midpoint, mm, br_midpoint], Insert_Thickness);
     };
 };
 
@@ -1052,7 +1075,8 @@ module plot_inserts(pattern, id, quantity, split_insert, splits="both") {
     else if (pattern == 36) {ak();}
     else if (pattern == 37) {ai();}
     else if (pattern == 38) {aj();}
-    else if (pattern == 39) {al();};
+    else if (pattern == 39) {al();}
+    else if (pattern == 40) {am();};
 }
 
 module split_insert(splitter_mask) {

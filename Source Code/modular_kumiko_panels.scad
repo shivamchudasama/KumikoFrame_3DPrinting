@@ -182,7 +182,7 @@ Subpanels = false;
 Seams = false;
 Outer_Frame = false;
 Border = false;
-Border_Background = false;
+Border_Background = true;
 Hanger = true;
 
 /* [Frame Dimensions] */
@@ -216,6 +216,9 @@ Background_Depth = 10;
 
 // Hanger Type
 Hanger_Type = "1"; // ["1":Wall Hanger, "2":Keyhole Shelving Hanger, "3":Ikea Fjallbo Ledge Hanger]
+
+// Number of hanger sets. Two sets adds hanger slots and cleats at the bottom of the frame as well (Wall Hanger only).
+Hanger_Sets = 2; // [1:One Set (Top), 2:Two Sets (Top and Bottom)]
 
 
 /* [Hidden] */
@@ -845,6 +848,19 @@ module create_border_background() {
             create_mask();
         }
         pattern_hanger_dovetails(0, repeat=n_vertical_dovetails);
+        if (Hanger_Sets == 2) {
+            // The left/right edges are symmetric about the frame's horizontal centerline, so
+            // mirroring the top slots about it lands them between the bottom strips' dovetails.
+            // Only the bottom left/right border background strips gain slots; nothing else changes.
+            translate([0, -n_triangles_height*Grid_Pitch])
+            mirror([0,1,0])
+            pattern_hanger_dovetails(0, repeat=n_vertical_dovetails, side="left");
+            // On odd frames the mirrored right-side pattern would sit half a pitch lower and its
+            // cleats would hang past the frame's bottom edge, so the right slots move up one pitch.
+            translate([0, -(n_triangles_height - is_odd)*Grid_Pitch])
+            mirror([0,1,0])
+            pattern_hanger_dovetails(0, repeat=n_vertical_dovetails, side="right");
+        }
     }
 }
 
@@ -1476,7 +1492,7 @@ module pattern_cleat(repeat) {
     }
 }
 
-module wall_cleat(repeat=6, shorten=0) {
+module wall_cleat(repeat=6, shorten=0, position="top") {
     // Create the wall cleat from which the panel will hang
     module wall_pattern(extrude_by=3.6) {
         points = [[16-7.5, -14.54], [19, -14.54], [19, -24], [16-7.5, -18]];
@@ -1491,11 +1507,15 @@ module wall_cleat(repeat=6, shorten=0) {
         }
     }
 
-    module create_hanger_template(shorten) {
+    module create_hanger_template(shorten, position) {
+        // Top set: the template's top edge lines up with the panel's top outer edge.
+        // Bottom set: the template's bottom edge lines up with the panel's bottom outer edge instead.
+        template_top = position == "top" ? Grid_Pitch/2+Grid_Thickness+selected_border_thickness_height-shorten*Grid_Pitch/2 : 0;
+        template_bottom = position == "top" ? -repeat*20 -14.54-9.5 : -Grid_Thickness-selected_border_thickness_height-Grid_Pitch*(n_vertical_dovetails+0.5)-shorten*Grid_Pitch/2;
         translate([-Grid_Thickness/2, -Grid_Pitch/2, -15])
         linear_extrude(0.4)
         difference() {
-            polygon([[-selected_border_thickness_width, Grid_Pitch/2+Grid_Thickness+selected_border_thickness_height-shorten*Grid_Pitch/2], [41, Grid_Pitch/2+Grid_Thickness+selected_border_thickness_height-shorten*Grid_Pitch/2], [41, -repeat*20 -14.54-9.5], [-selected_border_thickness_width, -repeat*20 -14.54-9.5]]);
+            polygon([[-selected_border_thickness_width, template_top], [41, template_top], [41, template_bottom], [-selected_border_thickness_width, template_bottom]]);
             drill_slots();
         }
     }
@@ -1523,7 +1543,7 @@ module wall_cleat(repeat=6, shorten=0) {
     }
 
     color(color_wall_template)
-    create_hanger_template(shorten);
+    create_hanger_template(shorten, position);
 }
 
 module creat_frame_cleat(repeat=6) {
@@ -1677,6 +1697,33 @@ module create_both_cleats() {
         translate([frame_width-Grid_Thickness,is_odd*Grid_Pitch/2])
         mirror([1,0,0])
         wall_cleat(repeat, shorten=is_odd);
+
+        if (Hanger_Sets == 2) {
+            // Bottom set: identical cleats shifted down so their dovetails land in the mirrored
+            // bottom slots. The cleats are translated (not mirrored) so their teeth keep the same
+            // orientation and both sets engage together when the panel slides down onto the wall cleats.
+            // Both sides use the same shift so the cleats stay inside the frame outline; on odd
+            // frames the right-side bottom slots are moved up one pitch to match (see create_border_background).
+            bottom_shift = Grid_Pitch*(n_vertical_dovetails+1) - n_triangles_height*Grid_Pitch;
+
+            color(color_frame_hanger)
+            translate([0, bottom_shift])
+            creat_frame_cleat(repeat);
+
+            translate([0, bottom_shift, Background_Depth/3])
+            wall_cleat(repeat, position="bottom");
+
+            color(color_frame_hanger)
+            translate([0, bottom_shift])
+            translate([frame_width-Grid_Thickness, is_odd*Grid_Pitch/2])
+            mirror([1,0,0])
+            creat_frame_cleat(repeat);
+
+            translate([0, bottom_shift, Background_Depth/3])
+            translate([frame_width-Grid_Thickness, is_odd*Grid_Pitch/2])
+            mirror([1,0,0])
+            wall_cleat(repeat, shorten=is_odd, position="bottom");
+        }
     } else if (Hanger_Type == "2") {
         color(color_wall_hanger)
         create_shelf_cleat();

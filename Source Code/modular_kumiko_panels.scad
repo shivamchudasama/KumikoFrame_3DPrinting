@@ -129,6 +129,41 @@ STEP 4: Prepare the print profiles
     4.7) Print all the plates.
     4.8) Repeat for the remaining components.
 
+ALTERNATIVE TO STEPS 3 & 4: Run the frame in "Combined Mode" (one assembled stl)
+
+        Steps 3 and 4 produce one stl per component, which is what you want for any frame too big to
+    fit the print bed in one piece. If instead you want the whole frame as a single assembled model -
+    to print a small frame in one go, or just to have one file of the finished thing - use Combined Mode.
+
+        Combined Mode renders every component seated where it belongs in the finished frame rather
+    than spread out for exporting. The "Frame Components" checkboxes are ignored: the subpanels,
+    seams, outer frame, border and border background are always all included. Use the "Combined Frame"
+    parameters to control the rest.
+
+    A.1) Set Assembly_Option = "Combined Mode".
+    A.2) Set the "Combined Frame" parameters:
+        - Fuse_Components: leave true to get one solid. It converts the fit clearances between
+            components into a slight interference so they overlap and boolean together. Set it to
+            false if you would rather inspect the assembly with its real print tolerances.
+        - Include_Hanger: adds the cleats on the back of the frame. Only the Wall Hanger
+            (Hanger_Type 1) is built in - see the note below.
+        - Include_Wall_Mount: also draws the wall-side cleat and drilling template in the hung
+            position. These fasten to the wall, not the frame, so leave this off unless you are
+            visualising how the frame hangs.
+    A.3) Render (F6) and export as stl (binary).
+
+    Notes:
+        - Check the frame fits your bed before printing. Combined Mode does not split anything, so
+            a frame larger than Print_Bed_Size simply will not fit - use steps 3 and 4 for those.
+        - Only the Wall Hanger is built into the combined frame. The keyhole shelving hanger and the
+            Ikea Fjallbo ledge hangers are clip-on assemblies with their own hand-fitted joints, so
+            print those separately from "Printable Mode" with Hanger = true.
+        - The reference text card is never included, so Hide_Text has no effect here. The frame
+            dimensions are still printed to the console.
+        - The assembled model contains small sealed cavities where the fit clearances used to be
+            open (inside the seam grooves and above the dovetails). They are normal - slicers just
+            leave them hollow.
+
 STEP 5: Design your panel in kumikodesigner.com
 
         Before or while you start printing your frame components, start designing your panel on kumikodesigner.com
@@ -167,8 +202,9 @@ Once all the components are printed, you can follow the assembly instructions he
 
 /* [General Options] */
 
-// Whether reference mode or printing mode is selected.
-Assembly_Option = "Printable Mode"; // [Reference Mode:Reference Mode (Do not print - use only as a reference), Printable Mode:Printable Mode]
+// Whether reference mode, printing mode, or combined mode is selected.
+Assembly_Option = "Combined Mode"; // [Reference Mode:Reference Mode (Do not print - use only as a reference), Printable Mode:Printable Mode, Combined Mode:Combined Mode (all components assembled into one model)]
+// Assembly_Option = "Printable Mode"; // Earlier option
 Hide_Colors = true;
 // Select whether to plot all the components (slow to load) or a reduced number of components (faster)
 All_Component_View = true;
@@ -178,6 +214,7 @@ Print_Bed_Size = 320; // [180:Small (180x180), 250:Medium (250x250), 320:Large (
 
 /* [Frame Components] */
 
+// Only used in "Reference Mode" and "Printable Mode". "Combined Mode" always builds the whole frame, so these are ignored - use the "Combined Frame" parameters instead.
 Subpanels = false;
 Seams = false;
 Outer_Frame = false;
@@ -200,25 +237,41 @@ Millimeter_Generator = [500, 700];
 Make_Exact_Dimensions = false;
 
 // Distance between triangles in frame.
-Grid_Pitch = 40;
+Grid_Pitch = 11;
+// Grid_Pitch = 40; // Earlier dimension
 
 // Depth of frame
-Frame_Depth = 10;
+Frame_Depth = 5;
+// Frame_Depth = 10; // Earlier dimension
 
 // Thickness of frame
-Grid_Thickness = 3;
+Grid_Thickness = 1;
+// Grid_Thickness = 3; // Earlier dimension
 
 // Thickness of border around frame. Must be larger than Grid_Thickness*2, otherwise border thickness will default to Grid_Thickness*2. 
 Border_Thickness = 0;
 
 // Background Depth
-Background_Depth = 10;
+Background_Depth = 0;
+// Background_Depth = 10; // Earlier dimension
 
 // Hanger Type
 Hanger_Type = "1"; // ["1":Wall Hanger, "2":Keyhole Shelving Hanger, "3":Ikea Fjallbo Ledge Hanger]
 
 // Number of hanger sets. Two sets adds hanger slots and cleats at the bottom of the frame as well (Wall Hanger only).
 Hanger_Sets = 2; // [1:One Set (Top), 2:Two Sets (Top and Bottom)]
+
+/* [Combined Frame] */
+// All parameters below only apply when Assembly_Option is "Combined Mode".
+
+// Turns the fit clearances between components into a slight interference so they overlap and weld together. Without it the components only meet face to face, which is fragile. Turn off to inspect the assembly with its real print tolerances.
+Fuse_Components = true;
+
+// Include the hanger cleats on the back of the frame. Only the Wall Hanger is built in; the keyhole and Ikea ledge hangers clip on by hand, so print those from "Printable Mode".
+Include_Hanger = false;
+
+// Also include the wall-side cleat and its drilling template, drawn in the hung position (Wall Hanger only). They fasten to the wall rather than the frame, so with Fuse_Components on they weld to the frame cleats - useful for visualising, not for printing.
+Include_Wall_Mount = false;
 
 
 /* [Hidden] */
@@ -230,6 +283,23 @@ $fs = 0.5;
 // This limits the size of pieces that are produced
 Bed_Width = Print_Bed_Size;
 Bed_Height = Print_Bed_Size;
+
+// -------------------------------------
+// ------------ MODE FLAGS -------------
+// -------------------------------------
+is_reference_mode = Assembly_Option == "Reference Mode";
+is_combined_mode = Assembly_Option == "Combined Mode";
+
+// Combined Mode reuses the printable geometry -- it only changes where the components are placed.
+printable_geometry = !is_reference_mode;
+
+// Combined Mode needs every component, not just the unique ones the print workflow gets away with.
+show_all_components = All_Component_View || is_combined_mode;
+
+// When fusing, the clearances that let the printed pieces slide together are inverted into a small
+// interference instead, so neighbouring components overlap and boolean into a single closed solid.
+fuse_components = is_combined_mode && Fuse_Components;
+fuse_interference = 0.02;
 
 // -------------------------------------
 // -------- CALCULATED FIELDS ----------
@@ -322,23 +392,34 @@ seam_major_thickness = Grid_Thickness * 3/16;
 seam_minor_thickness = Grid_Thickness * 3/16 - 0.1;
 seam_major_trim = Grid_Pitch/5;
 seam_minor_trim = Grid_Pitch/2.5;
-seam_major_offset = 0.05; // Affects: offset between seam and outer frame
+seam_major_offset = fuse_components ? -fuse_interference : 0.05; // Affects: offset between seam and outer frame
 seam_minor_offset = 0;
 seam_major_diamond_t = 0; // Major diamond should not be subtracted
-seam_minor_diamond_t = 0.05; // Minor diamond is slightly larger so the seams don't overlap
+seam_minor_diamond_t = fuse_components ? -fuse_interference : 0.05; // Minor diamond is slightly larger so the seams don't overlap
 
 // DOVETAIL VARIABLES
+// The *_os values below are fit clearances: positive shrinks a tenon or grows a pocket. Fusing
+// flips their sign so the tenon is slightly proud of its pocket and the two components merge.
 subpanel_dt_add_os = 0; // Top/bottom dovetails attached to subpanels
-subpanel_dt_sub_os = 0.05; // Top/bottom dovetails subtracted from outer frame (on inside of outer frame)
+subpanel_dt_sub_os = fuse_components ? -fuse_interference : 0.05; // Top/bottom dovetails subtracted from outer frame (on inside of outer frame)
 
-border_dt_add_os = 0.07; // Outer dovetails attached to outer border
+border_dt_add_os = fuse_components ? -fuse_interference : 0.07; // Outer dovetails attached to outer border
 border_dt_add_depth = Frame_Depth*0.9-0.05; // Outer dovetail depth
 
-border_dt_sub_os = 0.01; // Dovetails subtracted from border pieces
+border_dt_sub_os = fuse_components ? -fuse_interference : 0.01; // Dovetails subtracted from border pieces
 border_dt_sub_depth = Frame_Depth-border_dt_add_depth-0.2; // How deep the cut should be that there's a little bit of play to keep the pieces flat to each other)
 
-border_background_dt_add_os = 0.08; // Dovetails attached to background border pieces
+border_background_dt_add_os = fuse_components ? -fuse_interference : 0.08; // Dovetails attached to background border pieces
 border_background_dt_add_depth = Frame_Depth*0.85; // This should be slightly less than border_dt_sub_depth so the border background dovetails don't hit the bottom of the border
+
+hanger_dt_add_os = fuse_components ? -fuse_interference : 0.1; // Dovetails attached to the hanger cleats
+
+// Gap left between the split pieces of a component so they render as separate objects. Fusing
+// turns it into an overlap instead, which is harmless because every piece is cut from the same solid.
+split_piece_os = fuse_components ? -fuse_interference : 0.0001;
+
+// Gap between the inner edge of the border (and border background) and the outer edge of the frame.
+border_inner_os = fuse_components ? -fuse_interference : 0.001;
 
 n_vertical_dovetails = Print_Bed_Size == 180 ? 2 : 3;
 
@@ -358,7 +439,10 @@ color_frame_hanger = Hide_Colors ? Default_Color : "#5673d3ff";
 color_wall_template = "#969696ff";
 
 module reference_text() {
-    if (Assembly_Option == "Printable Mode") {
+    if (is_combined_mode) {
+        translate([0, 0])
+        text("COMBINED (ASSEMBLED) VERSION", halign="center", valign="center", font="Liberation Sans:style=Bold", size=5);
+    } else if (Assembly_Option == "Printable Mode") {
         translate([0, 0])
         text("PRINTABLE VERSION", halign="center", valign="center", font="Liberation Sans:style=Bold", size=5);
     } else {
@@ -397,6 +481,16 @@ module create_text_card() {
 };
 
 module main() {
+    if (is_combined_mode) {
+        combined_frame();
+    } else {
+        exploded_components();
+    }
+};
+
+// Renders whichever "Frame Components" are enabled, each pushed to its own depth so the
+// components stay visually separated for previewing and for exporting one stl at a time.
+module exploded_components() {
     if (!Hide_Text) {
         translate([0, 0, Frame_Depth*7])
         color("black")
@@ -444,12 +538,52 @@ module main() {
     }
 };
 
+// ------------------------------
+// COMBINED (ASSEMBLED) FRAME
+// ------------------------------
+// Renders every component at the position it occupies in the finished frame, so a single
+// render produces one assembled model rather than one file per component.
+//
+// The components already model themselves in assembled coordinates -- the per-component
+// workflow only pulls them apart with the depth offsets in exploded_components() (plus the
+// stacking shift inside pattern_subpanels). Dropping those offsets is therefore all that is
+// needed to seat the frame, seams, border and border background against each other. The one
+// component that genuinely has to move is the hanger: its cleats extrude upwards from z = 0,
+// but they belong in the border background behind the frame, which occupies z = -Background_Depth
+// to 0.
+module combined_frame() {
+    // The Wall Hanger cleat is the only hanger that fastens to the frame as a single piece. The
+    // keyhole shelving hanger is a clip-together assembly with its own hand-fitted dovetails, and
+    // the Ikea ledge hangers merely rest against the frame, so neither has a seated position in a
+    // combined model -- both are left out and printed from "Printable Mode" instead.
+    include_cleats = Include_Hanger && Hanger_Type == "1";
+
+    if (Include_Hanger && !include_cleats) {
+        echo("NOTE: only the Wall Hanger (Hanger_Type 1) is built into the combined frame. Export the selected hanger on its own with Assembly_Option = \"Printable Mode\" and Hanger = true.");
+    }
+
+    union() {
+        translate([-frame_width/2+Grid_Thickness/2, frame_height/2-Grid_Thickness]) {
+            pattern_subpanels();
+            create_all_seams("minor");
+            split_outer_frame();
+            final_border();
+            final_border_background();
+        }
+
+        if (include_cleats) {
+            translate([-frame_width/2+Grid_Thickness/2, frame_height/2-Grid_Thickness, -Background_Depth])
+            create_both_cleats();
+        }
+    }
+};
+
 
 // ------------------------------
 // CREATE FRAME
 // ------------------------------
 module split_outer_frame() {
-    if (Assembly_Option == "Printable Mode") {
+    if (printable_geometry) {
         divide_inner_frame()
         union() {
             difference() {
@@ -537,13 +671,17 @@ module pattern_subpanels() {
             bottom_subtractor = row == n_subpanels_height-1 && leftover_subpanel_t_height <= 0 ? leftover_subpanel_t_height : 0;
             subpanel_height_t = row == n_subpanels_height-1 && leftover_subpanel_t_height >= 0? leftover_subpanel_t_height : max_subpanel_t_height + bottom_subtractor;
             subpanel_width_t = col == n_subpanels_width-1 && leftover_subpanel_t_width != 0 ? leftover_subpanel_t_width/2 : max_subpanel_t_width;
-            if (q == tl || q == tr || q == bl || q == br || q == ml || q == mr || All_Component_View) {
+            if (q == tl || q == tr || q == bl || q == br || q == ml || q == mr || show_all_components) {
                 horizontal_panel_shift = col == 0 ? -max_subpanel_t_width*triangle_height*2-triangle_height*2 : max_subpanel_t_width*triangle_height*2+triangle_height*2;
                 depth_panel_shift = row == 0 || row == 1 ? (-1*(row-1))*Frame_Depth*1.5+Frame_Depth*1.5 : 0;
-                panel_shift = All_Component_View ? [0,0,(row+col)*Frame_Depth*1.25-(n_subpanels_height-1+n_subpanels_width-1)*Frame_Depth*1.25-Frame_Depth*8] : [horizontal_panel_shift, 0, depth_panel_shift];
+                // Combined Mode is the only view that wants the panels left where they belong;
+                // the other two spread them out so each one can be seen and exported on its own.
+                panel_shift = is_combined_mode ? [0,0,0]
+                    : All_Component_View ? [0,0,(row+col)*Frame_Depth*1.25-(n_subpanels_height-1+n_subpanels_width-1)*Frame_Depth*1.25-Frame_Depth*8]
+                    : [horizontal_panel_shift, 0, depth_panel_shift];
                 selected_color = row%2 == 0 ? color_subpanels[0] : color_subpanels[1];
 
-                if (Assembly_Option == "Printable Mode") {
+                if (printable_geometry) {
                     color(selected_color)
                     translate(panel_shift)
                     difference() {
@@ -601,7 +739,7 @@ module create_subpanel(row, col, subpanel_width_t, subpanel_height_t, selected_c
             q = is_odd == 0 && h%1 != 0 && w == subpanel_width_t-1 && col == n_subpanels_width-1;
             if (!q) {
 
-                if (Assembly_Option == "Printable Mode") {
+                if (printable_geometry) {
                     color(selected_color)
                     translate([w*triangle_height*2+w_shift, h*-Grid_Pitch])
                     linear_extrude(Frame_Depth)
@@ -773,7 +911,7 @@ module create_exterior_dovetail(os=0) {
 // ---------- BORDER --------------
 
 module final_border() {
-    if (Assembly_Option == "Printable Mode") {
+    if (printable_geometry) {
         translate([0,0,Frame_Depth-border_dt_sub_depth])
         divide_outer_border(border_dt_sub_depth)
         create_border();
@@ -795,7 +933,7 @@ module create_border() {
     difference() {
         resize(newsize=[frame_width+selected_border_thickness_width*2, frame_height+selected_border_thickness_height*2])
         create_mask();
-        offset(delta=0.001)
+        offset(delta=border_inner_os)
         create_mask();
     }
 }
@@ -844,7 +982,7 @@ module create_border_background() {
         difference() {
             offset(delta=Grid_Thickness)
             create_mask();
-            offset(delta=0.001)
+            offset(delta=border_inner_os)
             create_mask();
         }
         pattern_hanger_dovetails(0, repeat=n_vertical_dovetails);
@@ -1042,11 +1180,14 @@ module create_horizontal_seam_component(row, w_triangles, seam_type, is_first_co
 
 module extrude_seam_children(seam_type, component_type, c) {
     selected_extrude = seam_type == "major" ? seam_major_extrude : seam_minor_extrude;
+    // When fusing, sink the printed (minor) seam a touch into the floor of its groove so it bites
+    // into the panel vertically as well as sideways rather than resting on a coincident face.
+    sink = fuse_components && seam_type != "major" ? fuse_interference : 0;
 
     if (component_type == "line") {
-        translate([0,0,Frame_Depth-seam_thickness])
+        translate([0,0,Frame_Depth-seam_thickness-sink])
         color(c)
-        linear_extrude(seam_thickness)
+        linear_extrude(seam_thickness+sink)
         children();
     } else if (component_type == "drop") {
         translate([0,0,Frame_Depth-selected_extrude])
@@ -1088,7 +1229,7 @@ module pattern_horizontal_seams(seam_type, seam_position=false, extend_seam=fals
 }
 
 module create_all_seams(seam_type) {
-    if (Assembly_Option == "Printable Mode") {
+    if (printable_geometry) {
         union() {
             pattern_vertical_seams(seam_type);
             pattern_horizontal_seams(seam_type);
@@ -1188,7 +1329,7 @@ module divide_inner_frame(debug=false) {
             is_vertical_acc = (tl_1down == intersector_details) || (plot_tr_1down && tr_1down == intersector_details) || (plot_bl_1up && bl_1up == intersector_details) || (plot_br_1up && br_1up == intersector_details);
             is_horizontal_acc = (tl_1right == intersector_details) || (plot_tr_1left && tr_1left == intersector_details);
 
-            if (is_corner || is_vertical_acc || is_horizontal_acc || All_Component_View) {
+            if (is_corner || is_vertical_acc || is_horizontal_acc || show_all_components) {
                 horizontal_size = intersector_details[0];
                 vertical_size = intersector_details[1];
                 horizontal_shift = intersector_details[2];
@@ -1197,7 +1338,7 @@ module divide_inner_frame(debug=false) {
                 // OFFSETS
                 // os = 0;
                 os = (Grid_Thickness + max(selected_border_thickness_width, selected_border_thickness_height) + 0.1 + Grid_Pitch)*2;
-                ol_os = 0.0001; // overlap offset
+                ol_os = split_piece_os; // overlap offset
                 // Column 1 offsets (extend shapde left)
                 col_1_offsets = horizontal_panel_i == 0 ? [[-os, -ol_os], [0,-ol_os], [0,ol_os], [-os, ol_os]] : [[0,0],[0,0],[0,0],[0,0]];
                 // Row 1 offsets (extend shape up)
@@ -1214,7 +1355,7 @@ module divide_inner_frame(debug=false) {
                 
                 subpanel_shift_intermediate = [horizontal_subpanel_shift, 0, (depth_panel_shift_1+depth_panel_shift_2)*-1];
                 subpanel_shift_ = is_horizontal_acc && !is_corner ? [0, Grid_Pitch*1.5, (depth_panel_shift_1+depth_panel_shift_2)*-1] : subpanel_shift_intermediate;
-                subpanel_shift = All_Component_View ? [0,0] : subpanel_shift_;
+                subpanel_shift = show_all_components ? [0,0] : subpanel_shift_;
 
                 shape = [[0,0], [horizontal_size, 0], [horizontal_size, -vertical_size], [0, -vertical_size]] + col_1_offsets + row_1_offsets + col_m1_offsets + row_m1_offsets;
                 
@@ -1225,7 +1366,7 @@ module divide_inner_frame(debug=false) {
                     translate([horizontal_shift, vertical_shift])
                     %polygon(shape);
                 } else {
-                    if (Assembly_Option == "Printable Mode") {
+                    if (printable_geometry) {
                         color(selected_color)
                         translate(subpanel_shift)
                         intersection() {
@@ -1306,12 +1447,12 @@ module divide_outer_border(extrude_depth, debug=false) {
                 // SHIFTS
                 is_corner = (horizontal_panel_i == 0 && vertical_panel_i == 0) || (horizontal_panel_i == 0 && vertical_panel_i == n_vertical_subpanels) || (horizontal_panel_i == n_horizontal_subpanels && vertical_panel_i == 0) || (horizontal_panel_i == n_horizontal_subpanels && vertical_panel_i == n_vertical_subpanels);
                 horizontal_subpanel_shift = horizontal_panel_i == 0 ? -max_subpanel_t_width*triangle_height*2-triangle_height*2 : max_subpanel_t_width*triangle_height*2+triangle_height*2;
-                subpanel_shift = is_corner && All_Component_View == false ? [horizontal_subpanel_shift, 0] : [0,0];
+                subpanel_shift = is_corner && show_all_components == false ? [horizontal_subpanel_shift, 0] : [0,0];
 
                 // OFFSETS
                 // os = 0;
                 os = (Grid_Thickness + max(selected_border_thickness_width, selected_border_thickness_height) + 0.1 + Grid_Pitch)*2;
-                ol_os = 0.0001; // overlap offset (used so split components are separated from each other)
+                ol_os = split_piece_os; // overlap offset (used so split components are separated from each other)
                 // Column 1 offsets (extend shapde left)
                 col_1_offsets = horizontal_panel_i == 0 ? [[-os, -ol_os], [0,-ol_os], [0,ol_os], [-os, ol_os]] : [[0,0],[0,0],[0,0],[0,0]];
                 // Row 1 offsets (extend shape up)
@@ -1356,7 +1497,7 @@ module divide_background(section, extrude_depth, colors, debug=false) {
             // OFFSETS
             // os = 0;
             os = (Grid_Thickness + max(selected_border_thickness_width, selected_border_thickness_height) + 0.1 + Grid_Pitch)*2;
-            ol_os = 0.0001; // overlap offset (used so split components are separated from each other)
+            ol_os = split_piece_os; // overlap offset (used so split components are separated from each other)
             // Column 1 offsets (extend shapde left)
             col_1_offsets = horizontal_panel_i == 0 ? [[-os, -ol_os], [0,-ol_os], [0,ol_os], [-os, ol_os]] : [[0,0],[0,0],[0,0],[0,0]];
             // Row 1 offsets (extend shape up)
@@ -1577,7 +1718,7 @@ module creat_frame_cleat(repeat=6) {
     }
 
     linear_extrude(Background_Depth)
-    pattern_hanger_dovetails(0.1, repeat=n_vertical_dovetails, side="left");
+    pattern_hanger_dovetails(hanger_dt_add_os, repeat=n_vertical_dovetails, side="left");
 }
 
 module create_shelf_cleat() {
@@ -1646,7 +1787,7 @@ module create_shelf_cleat() {
 
 
     linear_extrude(Background_Depth)
-    pattern_hanger_dovetails(0.1, repeat=1, side="left");
+    pattern_hanger_dovetails(hanger_dt_add_os, repeat=1, side="left");
 }
 
 module create_ikea_hangers() {
@@ -1681,22 +1822,30 @@ module create_ikea_hangers() {
 module create_both_cleats() {
     repeat = Print_Bed_Size == 180 ? 5 : 6;
 
+    // The wall cleat and its drilling template fasten to the wall rather than to the frame, so the
+    // combined frame leaves them out unless they were asked for explicitly.
+    show_wall_parts = !is_combined_mode || Include_Wall_Mount;
+
     if (Hanger_Type == "1") {
         color(color_frame_hanger)
         creat_frame_cleat(repeat);
 
-        translate([0,0,Background_Depth/3])
-        wall_cleat(repeat);
+        if (show_wall_parts) {
+            translate([0,0,Background_Depth/3])
+            wall_cleat(repeat);
+        }
 
         color(color_frame_hanger)
         translate([frame_width-Grid_Thickness,is_odd*Grid_Pitch/2])
         mirror([1,0,0])
         creat_frame_cleat(repeat);
 
-        translate([0,0,Background_Depth/3])
-        translate([frame_width-Grid_Thickness,is_odd*Grid_Pitch/2])
-        mirror([1,0,0])
-        wall_cleat(repeat, shorten=is_odd);
+        if (show_wall_parts) {
+            translate([0,0,Background_Depth/3])
+            translate([frame_width-Grid_Thickness,is_odd*Grid_Pitch/2])
+            mirror([1,0,0])
+            wall_cleat(repeat, shorten=is_odd);
+        }
 
         if (Hanger_Sets == 2) {
             // Bottom set: identical cleats shifted down so their dovetails land in the mirrored
@@ -1710,8 +1859,10 @@ module create_both_cleats() {
             translate([0, bottom_shift])
             creat_frame_cleat(repeat);
 
-            translate([0, bottom_shift, Background_Depth/3])
-            wall_cleat(repeat, position="bottom");
+            if (show_wall_parts) {
+                translate([0, bottom_shift, Background_Depth/3])
+                wall_cleat(repeat, position="bottom");
+            }
 
             color(color_frame_hanger)
             translate([0, bottom_shift])
@@ -1719,10 +1870,12 @@ module create_both_cleats() {
             mirror([1,0,0])
             creat_frame_cleat(repeat);
 
-            translate([0, bottom_shift, Background_Depth/3])
-            translate([frame_width-Grid_Thickness, is_odd*Grid_Pitch/2])
-            mirror([1,0,0])
-            wall_cleat(repeat, shorten=is_odd, position="bottom");
+            if (show_wall_parts) {
+                translate([0, bottom_shift, Background_Depth/3])
+                translate([frame_width-Grid_Thickness, is_odd*Grid_Pitch/2])
+                mirror([1,0,0])
+                wall_cleat(repeat, shorten=is_odd, position="bottom");
+            }
         }
     } else if (Hanger_Type == "2") {
         color(color_wall_hanger)
@@ -1737,7 +1890,7 @@ module create_both_cleats() {
         color(color_wall_hanger)
         translate([0, Grid_Pitch])
         create_ikea_hangers();
-        
+
         color(color_wall_hanger)
         translate([0, Grid_Pitch])
         translate([frame_width-Grid_Thickness,is_odd*Grid_Pitch/2])

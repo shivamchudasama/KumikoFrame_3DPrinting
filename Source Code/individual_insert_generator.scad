@@ -30,22 +30,35 @@ if (Split_In_Half) {
 Insert_Pattern = 0; // [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
 Insert_Color = "#D3B7A7"; // color
 // Insert Thickness
-Insert_Thickness = 4;
+Insert_Thickness = 1.2;
+// Insert_Thickness = 4; // Earlier thickness
 // Oversize per contact face on patterns 39/40 (~2x this across the width) for a press fit
 Press_Fit = 0.20; // .05
+// Gap per contact face between every other pattern and the cell wall. Patterns are otherwise cut
+// to the exact size of the opening, which needs sanding to seat in a one-piece "Combined Mode"
+// frame - that frame is printed at nominal size and cannot flex the way an assembled one does.
+// Set to 0 to go back to the exact-size cut.
+Insert_Clearance = 0.10; // .05
+// Insert_Clearance = 0; // Earlier (exact-size cut, no clearance)
 N_Components = 1;
 Split_In_Half = false;
 // Note: only needed for asymmetric inserts
 Alternative_Cut = false;
 
 /* [Frame Dimensions] */
+// Must match the frame these inserts go into. The values below track the current settings in
+// modular_kumiko_panels.scad; the cell an insert fills is identical in all three Assembly_Options,
+// so the same numbers serve a Combined Mode frame and a component-by-component printed one.
 
 // Thickness of frame
-Grid_Thickness = 3;
+Grid_Thickness = 1;
+// Grid_Thickness = 3; // Earlier dimension
 // Pitch of triangles in frame
-Grid_Pitch = 40; // .5
+Grid_Pitch = 11; // .5
+// Grid_Pitch = 40; // .5 // Earlier dimension
 // Depth of frame
-Frame_Depth = 10; // .5
+Frame_Depth = 5; // .5
+// Frame_Depth = 10; // .5 // Earlier dimension
 
 /* [Magnet Parameters] */
 
@@ -120,15 +133,27 @@ module flipped_midtriangle(s=0.5) {
     polygon(p);
 };
 
-module insert_triangle() {
-    difference() {
-    polygon([[0,0], [0, -Grid_Pitch], [triangle_height, -Grid_Pitch/2]]);
-    difference() {
+// The cell opening in the frame, and the region every pattern is clipped to - so this is the one
+// place the fit against the frame is decided. "fit" moves that boundary per contact face:
+// negative pulls the insert off the wall (clearance), positive pushes it into the wall (press fit).
+module insert_triangle(fit=-Insert_Clearance) {
+    module cell_opening() {
+        difference() {
         polygon([[0,0], [0, -Grid_Pitch], [triangle_height, -Grid_Pitch/2]]);
-        offset(delta=-Grid_Thickness/2) 
-        polygon([[0,0], [0, -Grid_Pitch], [triangle_height, -Grid_Pitch/2]]);
-    }
+        difference() {
+            polygon([[0,0], [0, -Grid_Pitch], [triangle_height, -Grid_Pitch/2]]);
+            offset(delta=-Grid_Thickness/2)
+            polygon([[0,0], [0, -Grid_Pitch], [triangle_height, -Grid_Pitch/2]]);
+        }
+        };
     };
+
+    if (fit == 0) {
+        cell_opening();
+    } else {
+        offset(delta=fit)
+        cell_opening();
+    }
 };
 
 module a() {
@@ -943,8 +968,7 @@ module al() {
 
     translate(path_to_mid)
     intersection() {
-        offset(delta=Press_Fit)
-        insert_triangle();
+        insert_triangle(fit=Press_Fit);
         objs();
     };
 };
@@ -952,8 +976,7 @@ module al() {
 module am() {
     translate(path_to_mid)
     intersection() {
-        offset(delta=Press_Fit)
-        insert_triangle();
+        insert_triangle(fit=Press_Fit);
         stroke([l_midpoint, mm, tr_midpoint, mm, br_midpoint], Insert_Thickness);
     };
 };
